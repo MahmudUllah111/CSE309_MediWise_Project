@@ -38,7 +38,7 @@ const Staff = sequelize.define('Staff', {
     allowNull: true,
   },
   status: {
-    type: DataTypes.ENUM('active', 'inactive', 'on_leave'),
+    type: DataTypes.STRING,
     defaultValue: 'active',
   },
   notes: {

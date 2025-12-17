@@ -11,7 +11,7 @@ const Payment = sequelize.define('Payment', {
     primaryKey: true,
   },
   type: {
-    type: DataTypes.ENUM('salary', 'fee_split', 'refund'),
+    type: DataTypes.STRING,
     allowNull: false,
     comment: 'Payment type: salary for staff, fee_split for doctor fee, refund for refunds',
   },
@@ -73,7 +73,7 @@ const Payment = sequelize.define('Payment', {
     comment: 'Month for salary payments (YYYY-MM format)',
   },
   status: {
-    type: DataTypes.ENUM('pending', 'completed', 'cancelled'),
+    type: DataTypes.STRING,
     defaultValue: 'pending',
   },
   notes: {

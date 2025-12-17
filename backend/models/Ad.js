@@ -26,7 +26,7 @@ const Ad = sequelize.define('Ad', {
     allowNull: true,
   },
   targetAudience: {
-    type: DataTypes.ENUM('all', 'patient', 'doctor'),
+    type: DataTypes.STRING,
     defaultValue: 'all',
     field: 'target_audience', // Map to snake_case database column
   },

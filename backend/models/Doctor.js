@@ -86,7 +86,7 @@ const Doctor = sequelize.define('Doctor', {
     comment: 'Appointment duration in minutes',
   },
   status: {
-    type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+    type: DataTypes.STRING,
     defaultValue: 'pending',
     allowNull: false,
   },

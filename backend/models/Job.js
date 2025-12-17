@@ -25,8 +25,7 @@ const Job = sequelize.define('Job', {
     allowNull: true,
   },
   type: {
-    type: DataTypes.ENUM('full-time', 'part-time', 'contract', 'internship'),
-    allowNull: false,
+          type: DataTypes.STRING,    allowNull: false,
     defaultValue: 'full-time',
   },
   department: {

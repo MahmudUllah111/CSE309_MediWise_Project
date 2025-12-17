@@ -53,7 +53,7 @@ const Blog = sequelize.define('Blog', {
     defaultValue: 0,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+    type: DataTypes.STRING,
     defaultValue: 'pending',
   },
   authorId: {

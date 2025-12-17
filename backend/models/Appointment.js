@@ -43,7 +43,7 @@ const Appointment = sequelize.define('Appointment', {
     field: 'date_time', // Combined date and time column
   },
   status: {
-    type: DataTypes.ENUM('pending', 'confirmed', 'completed', 'cancelled'),
+    type: DataTypes.STRING,
     defaultValue: 'pending',
   },
   reason: {
