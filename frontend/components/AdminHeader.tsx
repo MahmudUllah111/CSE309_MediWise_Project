@@ -159,7 +159,7 @@ const AdminHeader = ({
     setShowUserMenu(false);
     // Show confirmation using notification - user can proceed with logout
     if (window.confirm('Are you sure you want to logout?')) {
-      showNotification('Logging out...', 'info', 1000);
+      showNotification('Logging out...', 'info');
       setTimeout(() => {
         logout();
       }, 500);

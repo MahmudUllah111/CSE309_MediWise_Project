@@ -252,7 +252,7 @@ export default function DoctorChatPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !user) return;
 
     const messageContent = newMessage.trim();
     const tempId = `temp-${Date.now()}`;

@@ -63,7 +63,7 @@ export default function AdminHelpPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar user={user} logout={logout} />
+      <AdminSidebar />
       <main className="w-full lg:ml-64 flex-1 transition-all duration-300">
         <AdminHeader title="Help & Support Center" />
 

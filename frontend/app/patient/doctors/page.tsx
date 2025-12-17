@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PatientSidebar from '@/components/PatientSidebar';
@@ -11,7 +11,7 @@ import { FiStar, FiMapPin, FiClock, FiDollarSign, FiSearch, FiCalendar, FiX } fr
 import { useNotification } from '@/context/NotificationContext';
 import { formatDoctorName } from '@/utils/doctorName';
 
-export default function PatientDoctorsPage() {
+function PatientDoctorsPageContent() {
   const { user, loading: authLoading, logout } = useAuth();
   const { showNotification } = useNotification();
   const router = useRouter();
@@ -53,44 +53,32 @@ export default function PatientDoctorsPage() {
   const fetchDoctors = useCallback(async (cursor?: string) => {
     try {
       setLoading(true);
-      // Remove status filter to get all doctors from database (real-time)
-      const params: any = { limit: 12 }; // Removed status: 'approved' to show all doctors
+      const params: any = { limit: 12 };
       if (cursor) params.cursor = cursor;
       if (selectedDept) params.departmentId = selectedDept;
-      // Only include search if it's at least 2 characters and Enter was pressed
-      // Don't auto-search on every keystroke
 
       const response = await api.get('/doctors', { params });
-      console.log('Doctors API response:', response.data);
       const doctorsData = response.data.doctors || [];
-      console.log('Doctors data:', doctorsData.length, 'doctors found');
       
-      // Filter approved doctors on frontend for patient view
       const approvedDoctors = doctorsData.filter((doctor: any) => 
         doctor.status === 'approved' && (doctor.isAvailable !== false)
       );
-      console.log('Approved and available doctors:', approvedDoctors.length);
       
       if (cursor) {
-        // Filter out duplicates by doctor.id
         setDoctors((prev) => {
           const existingIds = new Set(prev.map(d => d.id));
           const newDoctors = approvedDoctors.filter((d: any) => !existingIds.has(d.id));
           return [...prev, ...newDoctors];
         });
       } else {
-        // Remove duplicates from initial load as well
         const uniqueDoctors = approvedDoctors.filter((doctor: any, index: number, self: any[]) => 
           index === self.findIndex((d: any) => d.id === doctor.id)
         );
-        console.log('Setting doctors:', uniqueDoctors.length);
         setDoctors(uniqueDoctors);
       }
       setNextCursor(response.data.pagination?.nextCursor || null);
       setHasMore(response.data.pagination?.hasMore || false);
     } catch (error: any) {
-      console.error('Error fetching doctors:', error);
-      console.error('Error response:', error.response?.data);
       showNotification(error.response?.data?.message || 'Failed to load doctors. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -109,7 +97,6 @@ export default function PatientDoctorsPage() {
     }
   }, []);
 
-  // Read department from URL query parameter on mount
   useEffect(() => {
     const departmentParam = searchParams.get('department');
     if (departmentParam) {
@@ -125,32 +112,27 @@ export default function PatientDoctorsPage() {
     if (user && user.role === 'patient') {
       fetchDepartments();
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, fetchDepartments]);
 
   useEffect(() => {
     if (user && user.role === 'patient') {
-      // Reset doctors list when filter changes - always fetch fresh from database
       setDoctors([]);
       setNextCursor(null);
       setHasMore(false);
       fetchDoctors();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, selectedDept]); // fetchDoctors is stable enough - it only changes when selectedDept changes
+  }, [user, selectedDept, fetchDoctors]);
   
-  // Auto-refresh doctors list every 30 seconds for real-time updates from database
   useEffect(() => {
     if (user && user.role === 'patient') {
       const refreshInterval = setInterval(() => {
-        console.log('Auto-refreshing doctors list from database...');
         fetchDoctors();
-      }, 30000); // Refresh every 30 seconds for real-time updates
+      }, 30000);
       
       return () => clearInterval(refreshInterval);
     }
   }, [user, fetchDoctors]);
 
-  // Optimized debounced search with cleanup
   useEffect(() => {
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -176,10 +158,8 @@ export default function PatientDoctorsPage() {
   const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       setShowSuggestions(false);
-      // Reset cursor when searching
       setNextCursor(null);
       setHasMore(false);
-      // Search when Enter is pressed with search query
       if (user && user.role === 'patient' && searchQuery.trim().length >= 2) {
         const searchDoctorsWithQuery = async () => {
           try {
@@ -196,7 +176,6 @@ export default function PatientDoctorsPage() {
             setNextCursor(response.data.pagination?.nextCursor || null);
             setHasMore(response.data.pagination?.hasMore || false);
           } catch (error) {
-            console.error('Error searching doctors:', error);
             showNotification('Failed to search doctors. Please try again.', 'error');
           } finally {
             setLoading(false);
@@ -204,7 +183,6 @@ export default function PatientDoctorsPage() {
         };
         searchDoctorsWithQuery();
       } else if (user && user.role === 'patient') {
-        // If search is cleared, fetch all doctors
         fetchDoctors();
       }
     }
@@ -242,7 +220,6 @@ export default function PatientDoctorsPage() {
         setBookingError('This doctor has reached the daily appointment limit for this date.');
       }
     } catch (error: any) {
-      console.error('Error fetching available slots:', error);
       setAvailableSlots([]);
       setBookingError(error.response?.data?.message || 'Failed to fetch available slots');
     } finally {
@@ -254,7 +231,7 @@ export default function PatientDoctorsPage() {
     if (appointmentForm.appointmentDate && showBookingModal && selectedDoctor) {
       fetchAvailableSlots();
     }
-  }, [appointmentForm.appointmentDate, showBookingModal]);
+  }, [appointmentForm.appointmentDate, showBookingModal, selectedDoctor]);
 
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,8 +244,6 @@ export default function PatientDoctorsPage() {
 
     try {
       setLoadingSlots(true);
-      console.log('Booking appointment for doctor:', selectedDoctor.id);
-      console.log('Appointment details:', appointmentForm);
       
       const response = await api.post('/appointments', {
         doctorId: selectedDoctor.id,
@@ -277,9 +252,6 @@ export default function PatientDoctorsPage() {
         reason: appointmentForm.reason || '',
       });
       
-      console.log('Appointment booked successfully:', response.data);
-      
-      // Store appointment details for success modal
       const appointmentDetails = {
         doctor: selectedDoctor,
         date: appointmentForm.appointmentDate,
@@ -289,20 +261,15 @@ export default function PatientDoctorsPage() {
       };
       setBookedAppointment(appointmentDetails);
       
-      // Close booking modal
       setShowBookingModal(false);
       setAppointmentForm({ appointmentDate: '', appointmentTime: '', reason: '' });
       setAvailableSlots([]);
       
-      // Show success confirmation modal
       setShowSuccessModal(true);
       
-      // Show success notification
       showNotification('Appointment booked successfully! The doctor will see it in their appointments.', 'success');
       
     } catch (err: any) {
-      console.error('Error booking appointment:', err);
-      console.error('Error response:', err.response?.data);
       const errorMessage = err.response?.data?.message || 'Failed to book appointment';
       setBookingError(errorMessage);
       showNotification(errorMessage, 'error');
@@ -313,90 +280,65 @@ export default function PatientDoctorsPage() {
 
   const getAvailableDates = () => {
     if (!selectedDoctor?.availableDays) {
-      console.log('No availableDays found for doctor:', selectedDoctor?.id);
       return [];
     }
     
-    // Parse available days
     let days: string[] = [];
     try {
       if (Array.isArray(selectedDoctor.availableDays)) {
         days = selectedDoctor.availableDays;
       } else if (typeof selectedDoctor.availableDays === 'string') {
-        // Try to parse as JSON first
         try {
           days = JSON.parse(selectedDoctor.availableDays);
         } catch {
-          // If not JSON, try splitting by comma
-          days = selectedDoctor.availableDays.split(',').map(d => d.trim()).filter(d => d);
+          days = selectedDoctor.availableDays.split(',').map((d: string) => d.trim()).filter((d: string) => d);
         }
       }
     } catch (e) {
-      console.error('Error parsing availableDays:', e, selectedDoctor.availableDays);
       return [];
     }
-    
-    console.log('Parsed available days:', days);
     
     if (days.length === 0) {
-      console.warn('No available days parsed');
       return [];
     }
     
-    // Normalize day names and map to day numbers
     const dayMap: { [key: string]: number } = {
       'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
       'thursday': 4, 'friday': 5, 'saturday': 6
     };
     
-    // Convert available day names to numbers (case-insensitive)
     const availableDayNumbers = days
       .map((day: string) => {
         const normalizedDay = day.trim().toLowerCase();
-        const dayNumber = dayMap[normalizedDay];
-        if (dayNumber === undefined) {
-          console.warn('Unknown day name:', day, 'normalized:', normalizedDay);
-        }
-        return dayNumber;
+        return dayMap[normalizedDay];
       })
       .filter((d: number | undefined) => d !== undefined && d >= 0 && d <= 6) as number[];
     
-    console.log('Available day numbers:', availableDayNumbers);
-    
     if (availableDayNumbers.length === 0) {
-      console.warn('No valid available days found:', days);
       return [];
     }
     
-    // Create a Set for faster lookup
     const availableDaysSet = new Set(availableDayNumbers);
-    console.log('Available days set:', Array.from(availableDaysSet));
     
     const dates: string[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Get next 90 days and filter ONLY dates that fall on available days
-    // CRITICAL: Only include dates where dayOfWeek is EXACTLY in availableDaysSet
     for (let i = 1; i <= 90; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      date.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
-      const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, etc.
+      date.setHours(12, 0, 0, 0);
+      const dayOfWeek = date.getDay();
       
-      // ABSOLUTE STRICT FILTERING: Double-check before adding
       if (!availableDaysSet.has(dayOfWeek)) {
-        // Skip this date - it's not in available days
         continue;
       }
       
-      // Format date as YYYY-MM-DD (local date, not UTC)
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const dateString = `${year}-${month}-${day}`;
       
-      // Verify once more before adding
       const verifyDate = new Date(year, date.getMonth(), date.getDate());
       const verifyDayOfWeek = verifyDate.getDay();
       
@@ -405,32 +347,17 @@ export default function PatientDoctorsPage() {
       }
     }
     
-    // Final verification: remove any invalid dates due to timezone issues
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const validDates = dates.filter(d => {
-      // Parse date string (YYYY-MM-DD) as local date
       const [year, month, day] = d.split('-').map(Number);
-      const dateObj = new Date(year, month - 1, day); // month is 0-indexed
+      const dateObj = new Date(year, month - 1, day);
       const dayOfWeek = dateObj.getDay();
       return availableDaysSet.has(dayOfWeek);
     });
     
     if (validDates.length !== dates.length) {
       const removed = dates.length - validDates.length;
-      console.warn(`Removed ${removed} invalid date(s) due to timezone mismatch`);
     }
-    
-    console.log('Available dates filter:', {
-      availableDays: days,
-      availableDayNumbers: Array.from(availableDaysSet),
-      totalDatesGenerated: 90,
-      validDatesCount: validDates.length,
-      sampleDates: validDates.slice(0, 3).map(d => {
-        const [year, month, day] = d.split('-').map(Number);
-        const dateObj = new Date(year, month - 1, day);
-        return dayNames[dateObj.getDay()] + ', ' + dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-      })
-    });
     
     return validDates;
   };
@@ -440,7 +367,7 @@ export default function PatientDoctorsPage() {
   }
 
   if (!user || user.role !== 'patient') {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   if (loading && doctors.length === 0) {
@@ -458,7 +385,6 @@ export default function PatientDoctorsPage() {
     <div className="flex min-h-screen bg-gray-50">
       <PatientSidebar user={user} logout={logout} />
       <main className="w-full lg:ml-64 flex-1 transition-all duration-300">
-        {/* Modern Header with Simple Color */}
         <header className="bg-teal-600 text-white shadow-xl">
           <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
             <div>
@@ -470,7 +396,6 @@ export default function PatientDoctorsPage() {
 
         <div className="p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
-          {/* Search and Filter - Modern Design */}
           <div className="mb-8">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
@@ -498,7 +423,6 @@ export default function PatientDoctorsPage() {
                           const doctorName = doctor.user?.name || '';
                           setSearchQuery(doctorName);
                           setShowSuggestions(false);
-                          // Trigger search immediately with the selected doctor's name
                           try {
                             setLoading(true);
                             const params: any = { 
@@ -534,7 +458,6 @@ export default function PatientDoctorsPage() {
                 )}
               </div>
               
-              {/* Department Filter Dropdown */}
               <select
                 value={selectedDept || ''}
                 onChange={(e) => setSelectedDept(e.target.value || null)}
@@ -550,7 +473,6 @@ export default function PatientDoctorsPage() {
             </div>
           </div>
 
-          {/* Doctors Grid */}
           {doctors.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">No doctors found</p>
@@ -628,7 +550,6 @@ export default function PatientDoctorsPage() {
             </>
           )}
 
-          {/* Modern Professional Booking Modal */}
           {showBookingModal && selectedDoctor && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={(e) => {
               if (e.target === e.currentTarget) {
@@ -640,7 +561,6 @@ export default function PatientDoctorsPage() {
               }
             }}>
               <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-                {/* Modal Header */}
                 <div className="px-6 py-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
@@ -662,7 +582,6 @@ export default function PatientDoctorsPage() {
                   </div>
                 </div>
 
-                {/* Doctor Info Card */}
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-teal-600 flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
@@ -688,9 +607,7 @@ export default function PatientDoctorsPage() {
                   </div>
                 </div>
 
-                {/* Booking Form */}
                 <form onSubmit={handleBookAppointment} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-                  {/* Date Selection */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
                       <FiCalendar className="text-teal-600 text-base" />
@@ -719,7 +636,6 @@ export default function PatientDoctorsPage() {
                     )}
                   </div>
 
-                  {/* Time Slots - Show after date is selected */}
                   {appointmentForm.appointmentDate && (
                     <div>
                       <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
@@ -757,7 +673,6 @@ export default function PatientDoctorsPage() {
                     </div>
                   )}
 
-                  {/* Reason */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       Reason for Visit <span className="text-gray-400 font-normal">(Optional)</span>
@@ -771,7 +686,6 @@ export default function PatientDoctorsPage() {
                     />
                   </div>
 
-                  {/* Error Message */}
                   {bookingError && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
                       <div className="w-4 h-4 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -781,7 +695,6 @@ export default function PatientDoctorsPage() {
                     </div>
                   )}
 
-                  {/* Action Buttons */}
                   <div className="flex gap-3 pt-4 border-t border-gray-200">
                     <button
                       type="button"
@@ -810,7 +723,6 @@ export default function PatientDoctorsPage() {
             </div>
           )}
 
-          {/* Success Confirmation Modal */}
           {showSuccessModal && bookedAppointment && (
             <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={(e) => {
               if (e.target === e.currentTarget) {
@@ -820,7 +732,6 @@ export default function PatientDoctorsPage() {
               }
             }}>
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-                {/* Success Header */}
                 <div className="px-8 py-6 border-b border-gray-100">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -847,7 +758,6 @@ export default function PatientDoctorsPage() {
                   </div>
                 </div>
 
-                {/* Appointment Details */}
                 <div className="px-8 py-6 space-y-4">
                   <div className="bg-white rounded-xl p-4 border-2 border-gray-300">
                     <div className="flex items-center gap-3 mb-3">
@@ -886,7 +796,6 @@ export default function PatientDoctorsPage() {
                     </div>
                   </div>
 
-                  {/* Notification Message */}
                   <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
                     <p className="text-sm text-blue-800 font-medium">
                       ✓ You'll receive a confirmation email shortly
@@ -897,7 +806,6 @@ export default function PatientDoctorsPage() {
                   </div>
                 </div>
 
-                {/* Action Button */}
                 <div className="px-8 py-6 border-t border-gray-100 bg-gray-50">
                   <button
                     onClick={() => {
@@ -918,5 +826,13 @@ export default function PatientDoctorsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PatientDoctorsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <PatientDoctorsPageContent />
+    </Suspense>
   );
 }

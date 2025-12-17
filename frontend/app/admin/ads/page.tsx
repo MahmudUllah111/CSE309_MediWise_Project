@@ -239,7 +239,7 @@ export default function AdminAdsPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar user={user} logout={logout} />
+      <AdminSidebar />
       <main className="w-full lg:ml-64 flex-1 p-4 sm:p-6 lg:p-8">
         <div className="flex justify-between items-start mb-8">
           <div>

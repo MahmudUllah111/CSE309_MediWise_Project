@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/NotificationContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -14,7 +14,7 @@ import { format, parseISO } from 'date-fns';
 import { formatDoctorName, formatDoctorNameBengali } from '@/utils/doctorName';
 import { FiX, FiZap, FiCheck, FiEdit2, FiXCircle, FiFileText, FiMail, FiClipboard, FiActivity, FiBarChart2, FiAlertCircle, FiHeart, FiSave, FiEye, FiPrinter, FiPlus, FiCalendar, FiClock, FiLogOut } from 'react-icons/fi';
 
-export default function DoctorPrescriptionsPage() {
+function DoctorPrescriptionsPageContent() {
   const { user, loading: authLoading, logout } = useAuth();
   const { showNotification } = useNotification();
   const router = useRouter();
@@ -261,7 +261,7 @@ export default function DoctorPrescriptionsPage() {
       ].filter(Boolean).join('\n\n');
 
       // Use advice for rules if rules is empty
-      const finalRules = rulesArray.length > 0 ? rulesArray : 
+      const finalRules = rulesArray.length > 0 ? rulesArray :
         (prescriptionForm.advice ? prescriptionForm.advice.split('\n').filter(a => a.trim()).map((a) => ({ title: a.trim(), description: '' })) : []);
 
       await api.post('/prescriptions', {
@@ -1710,5 +1710,13 @@ export default function DoctorPrescriptionsPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function DoctorPrescriptionsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DoctorPrescriptionsPageContent />
+    </Suspense>
   );
 }

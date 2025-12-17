@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
@@ -11,8 +11,8 @@ import Link from 'next/link';
 import { FiStar, FiMapPin, FiClock, FiDollarSign, FiBell, FiSearch, FiMessageCircle, FiMenu, FiX, FiUser, FiCalendar, FiAward, FiArrowRight } from 'react-icons/fi';
 import { formatDoctorName } from '@/utils/doctorName';
 
-export default function DoctorsPage() {
-  const { user, loading: authLoading } = useAuth();
+function DoctorsPageContent() {
+  const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [doctors, setDoctors] = useState<any[]>([]);
@@ -148,7 +148,7 @@ export default function DoctorsPage() {
   if (!authLoading && user && user.role === 'patient') {
     return (
       <div className="flex min-h-screen bg-gray-50">
-        <PatientSidebar user={user} />
+        <PatientSidebar user={user} logout={logout} />
         <main className="w-full lg:ml-64 flex-1 transition-all duration-300">
           <div className="bg-teal-600 text-white px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
             <h1 className="text-2xl sm:text-3xl font-bold">Find a Doctor</h1>
@@ -665,3 +665,12 @@ export default function DoctorsPage() {
     </div>
   );
 }
+
+const DoctorsPage = () => (
+  <Suspense fallback={<Loading />}>
+    <DoctorsPageContent />
+  </Suspense>
+);
+
+export default DoctorsPage;
+

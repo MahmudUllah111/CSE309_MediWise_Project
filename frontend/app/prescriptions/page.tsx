@@ -91,7 +91,7 @@ export default function PrescriptionsPage() {
   };
 
   if (authLoading) {
-    return <Loading />;
+    return <Loading />; 
   }
 
   if (!user) {
@@ -101,7 +101,7 @@ export default function PrescriptionsPage() {
   // Doctor-specific view with modern design
   if (user.role === 'doctor') {
     router.push('/doctor/prescriptions');
-    return <Loading />;
+    return <Loading />; 
   }
 
   // Patient view with new design
@@ -258,7 +258,7 @@ export default function PrescriptionsPage() {
                       }
                       rows={5}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      placeholder="Medicine 1&#10;Medicine 2"
+                      placeholder="Medicine 1\nMedicine 2"
                     />
                   </div>
                   <div>
@@ -308,14 +308,12 @@ export default function PrescriptionsPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-800">Prescriptions</h1>
-            {user.role === 'doctor' && (
-              <button
+            <button
                 onClick={() => setShowCreateModal(true)}
                 className="px-6 py-3 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition-colors"
               >
                 Create Prescription
               </button>
-            )}
           </div>
 
           {loading && prescriptions.length === 0 ? (
@@ -449,7 +447,7 @@ export default function PrescriptionsPage() {
                       }
                       rows={5}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      placeholder="Medicine 1&#10;Medicine 2"
+                      placeholder="Medicine 1\nMedicine 2"
                     />
                   </div>
                   <div>
@@ -472,221 +470,6 @@ export default function PrescriptionsPage() {
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
-                    >
-                      Create Prescription
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
-                    >
-                      Create Prescription
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Admin/Other roles view
-  return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="ml-64 flex-1 p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">Prescriptions</h1>
-            {user.role === 'doctor' && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition-colors"
-              >
-                Create Prescription
-              </button>
-            )}
-          </div>
-
-          {loading && prescriptions.length === 0 ? (
-            <Loading />
-          ) : prescriptions.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-md p-12 text-center">
-              <p className="text-gray-500 text-lg">No prescriptions found</p>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-4">
-                {prescriptions.map((prescription) => (
-                  <div
-                    key={prescription.id}
-                    className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                          {user.role === 'patient'
-                            ? `Dr. ${prescription.doctor?.user?.name}`
-                            : prescription.patient?.name}
-                        </h3>
-                        <p className="text-gray-600">
-                          {format(new Date(prescription.prescriptionDate), 'MMMM dd, yyyy')}
-                        </p>
-                      </div>
-                    </div>
-
-                    {prescription.diagnosis && (
-                      <div className="mb-4">
-                        <h4 className="font-semibold text-gray-700 mb-1">Diagnosis:</h4>
-                        <p className="text-gray-600">{prescription.diagnosis}</p>
-                      </div>
-                    )}
-
-                    {prescription.medicines && prescription.medicines.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">Medicines:</h4>
-                        <ul className="list-disc list-inside text-gray-600 space-y-1">
-                          {prescription.medicines.map((med: any, index: number) => (
-                            <li key={index}>
-                              {med.name}
-                              {med.dosage && ` - ${med.dosage}`}
-                              {med.frequency && ` (${med.frequency})`}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {prescription.instructions && (
-                      <div>
-                        <h4 className="font-semibold text-gray-700 mb-1">Instructions:</h4>
-                        <p className="text-gray-600 whitespace-pre-line">{prescription.instructions}</p>
-                      </div>
-                    )}
-
-                    {prescription.prescriptionFile && (
-                      <div className="mt-4">
-                        <a
-                          href={prescription.prescriptionFile}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-teal-600 hover:underline"
-                        >
-                          View Prescription File
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {hasMore && (
-                <div className="mt-8 text-center">
-                  <button
-                    onClick={loadMore}
-                    disabled={loading}
-                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Loading...' : 'Load More'}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          {showCreateModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Create Prescription</h2>
-                <form onSubmit={handleCreatePrescription} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Patient Email
-                    </label>
-                    <input
-                      type="email"
-                      value={prescriptionForm.patientEmail}
-                      onChange={(e) =>
-                        setPrescriptionForm({ ...prescriptionForm, patientEmail: e.target.value })
-                      }
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      placeholder="patient@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Diagnosis
-                    </label>
-                    <textarea
-                      value={prescriptionForm.diagnosis}
-                      onChange={(e) =>
-                        setPrescriptionForm({ ...prescriptionForm, diagnosis: e.target.value })
-                      }
-                      rows={3}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Medicines (one per line)
-                    </label>
-                    <textarea
-                      value={prescriptionForm.medicines}
-                      onChange={(e) =>
-                        setPrescriptionForm({ ...prescriptionForm, medicines: e.target.value })
-                      }
-                      rows={5}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                      placeholder="Medicine 1&#10;Medicine 2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Instructions
-                    </label>
-                    <textarea
-                      value={prescriptionForm.instructions}
-                      onChange={(e) =>
-                        setPrescriptionForm({ ...prescriptionForm, instructions: e.target.value })
-                      }
-                      rows={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                    />
-                  </div>
-                  <div className="flex gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateModal(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
-                    >
-                      Create Prescription
                     </button>
                   </div>
                 </form>
