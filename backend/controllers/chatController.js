@@ -493,123 +493,31 @@ export const getMessages = async (req, res) => {
   try {
     const { userId } = req.params;
     const currentUserId = req.user.id;
-    const { role } = req.user;
 
-    // If patient is trying to view messages, verify access
-    if (role === 'patient') {
-      const receiver = await User.findByPk(userId);
-      if (receiver && receiver.role === 'doctor') {
-        // Check if patient has a completed appointment with this doctor
-        const doctor = await Doctor.findOne({ where: { userId } });
-        if (doctor) {
-          const appointment = await Appointment.findOne({
-            where: {
-              patientId: currentUserId,
-              doctorId: doctor.id,
-              status: 'completed',
-            },
-          });
-
-          if (!appointment) {
-            return res.status(403).json({ 
-              message: 'You can only view messages with doctors with whom you have completed appointments.' 
-            });
-          }
-        }
-      } else if (receiver && receiver.role === 'admin') {
-        // Patients can always view messages with admins - no restrictions
-        // Allow the request to proceed
-      }
-    }
-
-    // Use raw SQL to fetch messages reliably
-    console.log('=== Fetching messages with raw SQL ===');
-    console.log('Current user:', currentUserId, 'Other user:', userId);
-    
-    const messagesRows = await sequelize.query(`
-      SELECT 
-        m.id,
-        m."senderId" as "senderId",
-        m."receiverId" as "receiverId",
-        m.content,
-        m."isRead",
-        m."readAt",
-        m."createdAt",
-        m."updatedAt",
-        s.id as "sender.id",
-        s.name as "sender.name",
-        s.email as "sender.email",
-        s.role as "sender.role",
-        s.phone as "sender.phone",
-        r.id as "receiver.id",
-        r.name as "receiver.name",
-        r.email as "receiver.email",
-        r.role as "receiver.role",
-        r.phone as "receiver.phone"
-      FROM messages m
-      LEFT JOIN users s ON m."senderId"::text = s.id::text
-      LEFT JOIN users r ON m."receiverId"::text = r.id::text
-      WHERE (m."senderId"::text = :currentUserId::text AND m."receiverId"::text = :userId::text)
-         OR (m."senderId"::text = :userId::text AND m."receiverId"::text = :currentUserId::text)
-      ORDER BY m."createdAt" ASC;
-    `, {
-      replacements: { 
-        currentUserId: String(currentUserId).trim(),
-        userId: String(userId).trim()
+    const messages = await Message.findAll({
+      where: {
+        [Op.or]: [
+          { senderId: currentUserId, receiverId: userId },
+          { senderId: userId, receiverId: currentUserId },
+        ],
       },
-      type: sequelize.QueryTypes.SELECT,
+      include: [
+        { model: User, as: 'sender', attributes: ['id', 'name', 'email', 'role'] },
+        { model: User, as: 'receiver', attributes: ['id', 'name', 'email', 'role'] },
+      ],
+      order: [['createdAt', 'ASC']],
     });
 
-    console.log('📨 Messages fetched from database:', messagesRows?.length || 0);
-
-    // Transform to expected format
-    const messages = (messagesRows || []).map((row) => ({
-      id: row.id,
-      senderId: row.senderId,
-      receiverId: row.receiverId,
-      content: row.content,
-      isRead: row.isRead,
-      readAt: row.readAt,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      sender: row['sender.id'] ? {
-        id: row['sender.id'],
-        name: row['sender.name'],
-        email: row['sender.email'],
-        role: row['sender.role'],
-        phone: row['sender.phone'],
-      } : null,
-      receiver: row['receiver.id'] ? {
-        id: row['receiver.id'],
-        name: row['receiver.name'],
-        email: row['receiver.email'],
-        role: row['receiver.role'],
-        phone: row['receiver.phone'],
-      } : null,
-    }));
-
-    console.log('✅ Transformed messages:', messages.length);
-
-    // Mark messages as read using raw SQL
-    try {
-      await sequelize.query(`
-        UPDATE messages
-        SET "isRead" = true, "readAt" = NOW()
-        WHERE "senderId"::text = :userId::text
-          AND "receiverId"::text = :currentUserId::text
-          AND "isRead" = false;
-      `, {
-        replacements: { 
-          userId: String(userId).trim(),
-          currentUserId: String(currentUserId).trim()
+    await Message.update(
+      { isRead: true, readAt: new Date() },
+      {
+        where: {
+          senderId: userId,
+          receiverId: currentUserId,
+          isRead: false,
         },
-        type: sequelize.QueryTypes.UPDATE,
-      });
-      console.log('✅ Marked messages as read');
-    } catch (markReadError) {
-      console.error('⚠️  Error marking messages as read:', markReadError.message);
-      // Continue anyway
-    }
+      }
+    );
 
     res.json({
       success: true,
@@ -617,28 +525,7 @@ export const getMessages = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching messages:', error);
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    });
-    
-    // If table doesn't exist, return empty array instead of 500
-    if (error.message?.includes('relation "messages" does not exist') || 
-        error.message?.includes('does not exist')) {
-      console.log('⚠️  Messages table does not exist, returning empty array');
-      return res.status(200).json({
-        success: true,
-        messages: [],
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      messages: [],
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(500).json({ message: 'Failed to fetch messages.' });
   }
 };
 
