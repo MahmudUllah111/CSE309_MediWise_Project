@@ -151,7 +151,7 @@ export default function AdminBlogsPage() {
                   <span>{blog.author?.name || 'Unknown'}</span>
                 </div>
                 <div className="text-sm text-gray-500 mb-4">
-                  {format(new Date(blog.createdAt), 'MMM dd, yyyy')}
+                  {blog.createdAt ? format(new Date(blog.createdAt), 'MMM dd, yyyy') : 'Date not available'}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -229,7 +229,7 @@ export default function AdminBlogsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <FiClock />
-                      {format(new Date(selectedBlog.createdAt), 'MMM dd, yyyy')}
+                      {selectedBlog.createdAt ? format(new Date(selectedBlog.createdAt), 'MMM dd, yyyy') : 'Date not available'}
                     </span>
                     <span>{selectedBlog.category || 'Health Tips'}</span>
                   </div>
