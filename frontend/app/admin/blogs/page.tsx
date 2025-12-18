@@ -18,6 +18,10 @@ import {
   FiUser
 } from 'react-icons/fi';
 
+const isValidDate = (date: string | Date) => {
+  return date && !isNaN(new Date(date).getTime());
+};
+
 export default function AdminBlogsPage() {
   const { user, loading: authLoading, logout } = useAuth();
   const { showNotification } = useNotification();
@@ -151,7 +155,7 @@ export default function AdminBlogsPage() {
                   <span>{blog.author?.name || 'Unknown'}</span>
                 </div>
                 <div className="text-sm text-gray-500 mb-4">
-                  {blog.createdAt ? format(new Date(blog.createdAt), 'MMM dd, yyyy') : 'Date not available'}
+                  {isValidDate(blog.createdAt) ? format(new Date(blog.createdAt), 'MMM dd, yyyy') : 'Date not available'}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -229,7 +233,7 @@ export default function AdminBlogsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <FiClock />
-                      {selectedBlog.createdAt ? format(new Date(selectedBlog.createdAt), 'MMM dd, yyyy') : 'Date not available'}
+                      {isValidDate(selectedBlog.createdAt) ? format(new Date(selectedBlog.createdAt), 'MMM dd, yyyy') : 'Date not available'}
                     </span>
                     <span>{selectedBlog.category || 'Health Tips'}</span>
                   </div>
