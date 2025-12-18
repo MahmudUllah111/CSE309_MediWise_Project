@@ -42,6 +42,16 @@ export default function LandingPage() {
 
   useEffect(() => {
     fetchBlogs();
+
+    const handleFocus = () => {
+      fetchBlogs();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const fetchBlogs = async () => {
