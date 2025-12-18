@@ -1388,9 +1388,30 @@ export const getPendingBlogs = async (req, res) => {
       order: [['created_at', 'DESC']],
     });
     
+    const blogsWithFormattedDates = blogs.map(blog => {
+      const plainBlog = blog.get({ plain: true });
+      try {
+        if (plainBlog.createdAt && !isNaN(new Date(plainBlog.createdAt).getTime())) {
+          plainBlog.createdAt = new Date(plainBlog.createdAt).toISOString();
+        } else {
+          plainBlog.createdAt = new Date().toISOString(); // Fallback to now
+        }
+        if (plainBlog.updatedAt && !isNaN(new Date(plainBlog.updatedAt).getTime())) {
+          plainBlog.updatedAt = new Date(plainBlog.updatedAt).toISOString();
+        } else {
+          plainBlog.updatedAt = new Date().toISOString(); // Fallback to now
+        }
+      } catch (e) {
+        console.error('Error formatting date for blog:', plainBlog.id, e);
+        plainBlog.createdAt = new Date().toISOString();
+        plainBlog.updatedAt = new Date().toISOString();
+      }
+      return plainBlog;
+    });
+
     res.json({
       success: true,
-      blogs,
+      blogs: blogsWithFormattedDates,
     });
   } catch (error) {
     console.error('Error fetching pending blogs:', error);
