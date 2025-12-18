@@ -49,6 +49,9 @@ export default function AdminBlogsPage() {
     try {
       setLoading(true);
       const response = await api.get('/blogs/admin/pending');
+      console.log('--- PENDING BLOGS RAW DATA ---');
+      console.log(JSON.stringify(response.data.blogs, null, 2));
+      console.log('-----------------------------');
       setBlogs(response.data.blogs || []);
     } catch (error: any) {
       console.error('Error fetching pending blogs:', error);
@@ -121,7 +124,12 @@ export default function AdminBlogsPage() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {blogs.map((blog) => (
+            {blogs.map((blog) => {
+              console.log('--- RENDERING BLOG ---');
+              console.log('Blog object:', blog);
+              console.log('createdAt value:', blog.createdAt);
+              console.log('----------------------');
+              return (
               <div
                 key={blog.id}
                 className="bg-white rounded-2xl shadow-xl p-6 border-2 border-gray-300 hover:shadow-2xl transition-all"
