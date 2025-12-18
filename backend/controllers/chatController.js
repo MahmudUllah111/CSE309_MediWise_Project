@@ -644,6 +644,7 @@ export const getMessages = async (req, res) => {
 
 // Send a message
 export const sendMessage = async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const { receiverId, content } = req.body;
     const senderId = req.user.id;
@@ -653,238 +654,51 @@ export const sendMessage = async (req, res) => {
       return res.status(400).json({ message: 'Receiver ID and content are required' });
     }
 
-    // PROACTIVE: Ensure messages table exists
-    try {
-      const [tableExists] = await sequelize.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'messages'
-        );
-      `);
+    if (role === 'patient') {
+      const receiver = await User.findByPk(receiverId);
+      if (receiver && receiver.role === 'doctor') {
+        const doctor = await Doctor.findOne({ where: { userId: receiverId } });
+        if (doctor) {
+          const appointment = await Appointment.findOne({
+            where: {
+              patientId: senderId,
+              doctorId: doctor.id,
+              status: 'completed',
+            },
+          });
 
-      if (!tableExists[0].exists) {
-        console.log('⚠️  Messages table does not exist - creating it...');
-        await sequelize.query(`
-          CREATE TABLE IF NOT EXISTS messages (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            "senderId" UUID NOT NULL,
-            "receiverId" UUID NOT NULL,
-            content TEXT NOT NULL,
-            "isRead" BOOLEAN DEFAULT false,
-            "readAt" TIMESTAMP,
-            "createdAt" TIMESTAMP DEFAULT NOW(),
-            "updatedAt" TIMESTAMP DEFAULT NOW(),
-            CONSTRAINT messages_senderId_fkey FOREIGN KEY ("senderId") REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
-            CONSTRAINT messages_receiverId_fkey FOREIGN KEY ("receiverId") REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
-          );
-        `);
-        console.log('✅ Messages table created successfully');
-      }
-
-      // Check and add missing columns
-      const [columns] = await sequelize.query(`
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_name = 'messages'
-        AND table_schema = 'public';
-      `);
-
-      const columnNames = columns.map(col => col.column_name.toLowerCase());
-      
-      if (!columnNames.includes('senderid')) {
-        await sequelize.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS "senderId" UUID;`);
-      }
-      if (!columnNames.includes('receiverid')) {
-        await sequelize.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS "receiverId" UUID;`);
-      }
-      if (!columnNames.includes('content')) {
-        await sequelize.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS content TEXT;`);
-      }
-      if (!columnNames.includes('isread')) {
-        await sequelize.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS "isRead" BOOLEAN DEFAULT false;`);
-      }
-      if (!columnNames.includes('readat')) {
-        await sequelize.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS "readAt" TIMESTAMP;`);
-      }
-      if (!columnNames.includes('createdat')) {
-        await sequelize.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW();`);
-      }
-      if (!columnNames.includes('updatedat')) {
-        await sequelize.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();`);
-      }
-    } catch (tableError) {
-      console.error('⚠️  Error checking/creating messages table:', tableError.message);
-      // Continue anyway - will handle error on insert
-    }
-
-      // If patient is sending message to a doctor, check if they have a completed appointment
-      // But allow patients to always message admins
-      if (role === 'patient') {
-        const receiver = await User.findByPk(receiverId);
-        if (receiver && receiver.role === 'doctor') {
-          // Check if patient has a completed appointment with this doctor
-          const doctor = await Doctor.findOne({ where: { userId: receiverId } });
-          if (doctor) {
-            const appointment = await Appointment.findOne({
-              where: {
-                patientId: senderId,
-                doctorId: doctor.id,
-                status: 'completed',
-              },
+          if (!appointment) {
+            return res.status(403).json({ 
+              message: 'You can only message doctors with whom you have completed appointments.' 
             });
-
-            if (!appointment) {
-              return res.status(403).json({ 
-                message: 'You can only message doctors with whom you have completed appointments. Please complete your appointment first.' 
-              });
-            }
           }
-        } else if (receiver && receiver.role === 'admin') {
-          // Patients can always message admins - no restrictions
-          // Allow the message to proceed
         }
       }
+    }
 
-    // Use raw SQL to ensure message is stored in database
-    console.log('=== Creating message with raw SQL ===');
-    const insertQuery = `
-      INSERT INTO messages (
-        id,
-        "senderId",
-        "receiverId",
-        content,
-        "isRead",
-        "readAt",
-        "createdAt",
-        "updatedAt"
-      )
-      VALUES (
-        gen_random_uuid(),
-        :senderId::uuid,
-        :receiverId::uuid,
-        :content,
-        false,
-        NULL,
-        NOW(),
-        NOW()
-      )
-      RETURNING id;
-    `;
+    const newMessage = await Message.create({
+      senderId,
+      receiverId,
+      content,
+    }, { transaction: t });
 
-    const insertParams = {
-      senderId: String(senderId).trim(),
-      receiverId: String(receiverId).trim(),
-      content: String(content).trim(),
-    };
+    await t.commit();
 
-    console.log('Insert message params:', { ...insertParams, content: content.substring(0, 50) + '...' });
-
-    const insertResult = await sequelize.query(insertQuery, {
-      replacements: insertParams,
-      type: sequelize.QueryTypes.SELECT,
+    const messageWithDetails = await Message.findByPk(newMessage.id, {
+      include: [
+        { model: User, as: 'sender', attributes: ['id', 'name', 'email', 'role'] },
+        { model: User, as: 'receiver', attributes: ['id', 'name', 'email', 'role'] },
+      ],
     });
-
-    let messageId;
-    if (Array.isArray(insertResult) && insertResult.length > 0) {
-      messageId = insertResult[0]?.id || insertResult[0]?.ID;
-    } else if (insertResult && insertResult.id) {
-      messageId = insertResult.id;
-    }
-
-    if (!messageId) {
-      console.error('❌ Failed to create message - no ID returned');
-      return res.status(500).json({ 
-        message: 'Failed to send message. Please try again.',
-        debug: process.env.NODE_ENV === 'development' ? { insertResult } : undefined
-      });
-    }
-
-    console.log('✅ Message created with ID:', messageId);
-
-    // Fetch message with details using raw SQL if Message.findByPk fails
-    let messageWithDetails;
-    try {
-      messageWithDetails = await Message.findByPk(messageId, {
-        include: [
-          { model: User, as: 'sender', attributes: ['id', 'name', 'email', 'role'] },
-          { model: User, as: 'receiver', attributes: ['id', 'name', 'email', 'role'] },
-        ],
-      });
-    } catch (fetchError) {
-      console.error('⚠️  Error fetching message with Sequelize, using raw SQL:', fetchError.message);
-      // Fallback to raw SQL
-      const messageRows = await sequelize.query(`
-        SELECT 
-          m.id,
-          m."senderId" as "senderId",
-          m."receiverId" as "receiverId",
-          m.content,
-          m."isRead",
-          m."readAt",
-          m."createdAt",
-          m."updatedAt",
-          s.id as "sender.id",
-          s.name as "sender.name",
-          s.email as "sender.email",
-          s.role as "sender.role",
-          r.id as "receiver.id",
-          r.name as "receiver.name",
-          r.email as "receiver.email",
-          r.role as "receiver.role"
-        FROM messages m
-        LEFT JOIN users s ON m."senderId"::text = s.id::text
-        LEFT JOIN users r ON m."receiverId"::text = r.id::text
-        WHERE m.id::text = :messageId::text
-        LIMIT 1;
-      `, {
-        replacements: { messageId: String(messageId).trim() },
-        type: sequelize.QueryTypes.SELECT,
-      });
-
-      if (messageRows && Array.isArray(messageRows) && messageRows.length > 0) {
-        const row = messageRows[0];
-        messageWithDetails = {
-          id: row.id,
-          senderId: row.senderId,
-          receiverId: row.receiverId,
-          content: row.content,
-          isRead: row.isRead,
-          readAt: row.readAt,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-          sender: row['sender.id'] ? {
-            id: row['sender.id'],
-            name: row['sender.name'],
-            email: row['sender.email'],
-            role: row['sender.role'],
-          } : null,
-          receiver: row['receiver.id'] ? {
-            id: row['receiver.id'],
-            name: row['receiver.name'],
-            email: row['receiver.email'],
-            role: row['receiver.role'],
-          } : null,
-        };
-      }
-    }
-
-    if (!messageWithDetails) {
-      console.error('❌ Failed to fetch message details');
-      return res.status(500).json({ 
-        message: 'Message sent but failed to fetch details. Please refresh.',
-      });
-    }
-
-    console.log('✅ Message stored in database successfully:', messageId);
 
     res.status(201).json({
       success: true,
       message: messageWithDetails,
     });
   } catch (error) {
+    await t.rollback();
     console.error('Error sending message:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Failed to send message. Please try again.' });
   }
 };
 
