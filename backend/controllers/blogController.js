@@ -1385,7 +1385,7 @@ export const getPendingBlogs = async (req, res) => {
           attributes: ['id', 'name', 'email'],
         },
       ],
-      order: [['createdAt', 'DESC']],
+      order: [['created_at', 'DESC']],
     });
     
     res.json({
